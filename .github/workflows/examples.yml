@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up V
-        uses: vlang/setup-v@v1
+        uses: vlang/setup-v@v1.4
       - name: Build all example main files
         shell: bash
         run: |
