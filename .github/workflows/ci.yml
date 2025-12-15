@@ -15,7 +15,9 @@ jobs:
         run: |
           curl -fsSL https://github.com/vlang/v/releases/latest/download/v_linux.zip -o v.zip
           unzip v.zip
-          sudo mv v /usr/local/bin/v
+          cd v
+          make
+          sudo ./v symlink
           v -version
       - name: Run all tests
         run: |
