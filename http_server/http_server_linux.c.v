@@ -19,7 +19,7 @@ fn C.close(fd int) int
 // Handles a readable client connection: receives the request, routes it, and sends the response.
 fn handle_readable_fd(request_handler fn ([]u8, int) ![]u8, epoll_fd int, client_conn_fd int) {
 	request_buffer := request.read_request(client_conn_fd) or {
-		$if verbose ? {} {
+		$if verbose ? {
 			eprintln('[epoll-worker] Error reading request from fd ${client_conn_fd}: ${err}')
 		}
 		response.send_status_444_response(client_conn_fd)

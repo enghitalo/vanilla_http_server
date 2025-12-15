@@ -1,7 +1,7 @@
 module main
 
 import http_server
-import response
+import http_server.response
 
 fn test_server_end_to_end() ! {
 	// Prepare requests
@@ -12,13 +12,11 @@ fn test_server_end_to_end() ! {
 	requests := [request1, request2, request3, request4]
 
 	mut server := http_server.new_server(http_server.ServerConfig{
-		port: 8082
+		port:            8082
 		request_handler: handle_request
 		io_multiplexing: .epoll
 	})
-	responses := server.test(requests) or {
-		panic('[test] server.test failed: ${err}')
-	}
+	responses := server.test(requests) or { panic('[test] server.test failed: ${err}') }
 	assert responses.len == 4
 	assert responses[0] == http_ok_response
 	assert responses[1] == 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\nConnection: keep-alive\r\n\r\n123'.bytes()
