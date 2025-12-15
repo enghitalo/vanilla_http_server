@@ -15,7 +15,7 @@ jobs:
         uses: vlang/setup-v@v1.4
       - name: Remove Vlang folder
         run: |
-          rmdir --ignore-fail-on-non-empty -v ./vlang || true
+          rmdir -rf -v ./vlang || true
 
       - name: Run all tests
         run: |
