@@ -44,8 +44,8 @@ fn handle_request(req_buffer []u8, client_conn_fd int) ![]u8 {
 fn main() {
 	mut server := http_server.new_server(http_server.ServerConfig{
 		port:            3000
-		request_handler: handle_request
 		io_multiplexing: .epoll
+		request_handler: handle_request
 	})
 	server.run()
 }

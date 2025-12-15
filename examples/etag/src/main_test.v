@@ -1,6 +1,6 @@
 module main
 
-import http_server
+import http_server.response
 
 fn test_handle_request_get_home() {
 	req_buffer := 'GET / HTTP/1.1\r\n\r\n'.bytes()
@@ -23,5 +23,5 @@ fn test_handle_request_post_user() {
 fn test_handle_request_bad_request() {
 	req_buffer := 'INVALID / HTTP/1.1\r\n\r\n'.bytes()
 	response := handle_request(req_buffer, -1) or { panic(err) }
-	assert response == http_server.tiny_bad_request_response
+	assert response == response.tiny_bad_request_response
 }

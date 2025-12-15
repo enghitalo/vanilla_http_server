@@ -18,11 +18,11 @@ fn main() {
 
 	println('Starting server with ${io_multiplexing} io_multiplexing...')
 
-	mut server := http_server.Server{
-		request_handler: handle_request
+	mut server := http_server.new_server(http_server.ServerConfig{
 		port:            3000
 		io_multiplexing: io_multiplexing
-	}
+		request_handler: handle_request
+	})
 
 	server.run()
 }

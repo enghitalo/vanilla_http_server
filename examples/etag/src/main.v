@@ -1,6 +1,7 @@
 module main
 
 import http_server
+import http_server.response
 import request_parser
 
 fn handle_request(req_buffer []u8, client_conn_fd int) ![]u8 {
@@ -23,14 +24,15 @@ fn handle_request(req_buffer []u8, client_conn_fd int) ![]u8 {
 		}
 	}
 
-	return http_server.tiny_bad_request_response
+	return response.tiny_bad_request_response
 }
 
 fn main() {
-	mut vanilla := http_server.Server{
+	mut server := http_server.new_server(http_server.ServerConfig{
+		port:            3000
+		io_multiplexing: .epoll
 		request_handler: handle_request
-		port:            3001
-	}
+	})
 
-	vanilla.run()
+	server.run()
 }

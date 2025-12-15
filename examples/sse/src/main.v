@@ -1,6 +1,7 @@
 module main
 
 import http_server
+import http_server.response
 import request_parser
 import time
 import sync
@@ -87,19 +88,19 @@ fn handle_request(req_buffer []u8, client_conn_fd int, mut manager ClientManager
 		else {}
 	}
 
-	return http_server.tiny_bad_request_response
+	return response.tiny_bad_request_response
 }
 
 fn main() {
 	mut manager := ClientManager{}
 
-	mut vanilla := http_server.Server{
+	mut server := http_server.new_server(http_server.ServerConfig{
+		port:            3000
+		io_multiplexing: .epoll
 		request_handler: fn [mut manager] (req_buffer []u8, client_conn_fd int) ![]u8 {
 			return handle_request(req_buffer, client_conn_fd, mut manager)
 		}
-		port:            3001
-	}
-
+	})
 	println('Server running on http://localhost:3001')
-	vanilla.run()
+	server.run()
 }

@@ -1,7 +1,7 @@
 module main
 
 import strings
-import http_server
+import http_server.response
 
 const http_ok_response = 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'.bytes()
 
@@ -44,7 +44,7 @@ fn get_users_controller(params []string, mut pool ConnectionPool) ![]u8 {
 @[direct_array_access; manualfree]
 fn get_user_controller(params []string, mut pool ConnectionPool) ![]u8 {
 	if params.len == 0 {
-		return http_server.tiny_bad_request_response
+		return response.tiny_bad_request_response
 	}
 	id := params[0]
 	mut db := pool.acquire() or { return tiny_internal_server_error_response }

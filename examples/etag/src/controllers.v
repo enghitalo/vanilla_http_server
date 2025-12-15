@@ -1,7 +1,7 @@
 module main
 
 import strings
-import http_server
+import http_server.response
 import request_parser
 import crypto.md5
 
@@ -26,7 +26,7 @@ fn get_users_controller(params []string) ![]u8 {
 @[direct_array_access; manualfree]
 fn get_user_controller(params []string, req request_parser.HttpRequest) ![]u8 {
 	if params.len == 0 {
-		return http_server.tiny_bad_request_response
+		return response.tiny_bad_request_response
 	}
 	id := params[0]
 	response_body := id.bytes() // Convert to []u8 for hashing

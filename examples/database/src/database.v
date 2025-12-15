@@ -35,6 +35,6 @@ pub fn (mut pool ConnectionPool) release(conn pg.DB) {
 pub fn (mut pool ConnectionPool) close() {
 	for _ in 0 .. pool.connections.len {
 		mut conn := <-pool.connections or { break }
-		conn.close()
+		conn.close() or { eprintln('Failed to close connection: ${err}') }
 	}
 }
