@@ -1,5 +1,4 @@
-// http_server_darwin.c.v
-// Darwin (macOS)-specific HTTP server entry point or helpers
+// Darwin (macOS)-specific HTTP server implementation using kqueue
 
 module http_server
 
@@ -8,64 +7,113 @@ import socket
 import response
 import request
 
-pub fn run(mut server Server) {
-	match server.io_multiplexing {
-		.kqueue_backend {
-			server.run_kqueue()
+fn C.perror(s &char)
+fn C.close(fd int) int
+
+// Handle readable client connection
+fn handle_readable_fd(handler fn ([]u8, int) ![]u8, kq_fd int, client_fd int) {
+	request_buffer := request.read_request(client_fd) or {
+		response.send_status_444_response(client_fd)
+		kqueue.remove_fd_from_kqueue(kq_fd, client_fd)
+		return
+	}
+	defer { unsafe { request_buffer.free() } }
+
+	response_buffer := handler(request_buffer, client_fd) or {
+		response.send_bad_request_response(client_fd)
+		kqueue.remove_fd_from_kqueue(kq_fd, client_fd)
+		return
+	}
+
+	response.send_response(client_fd, response_buffer.data, response_buffer.len) or {
+		kqueue.remove_fd_from_kqueue(kq_fd, client_fd)
+		return
+	}
+
+	// Close connection (no keep-alive for simplicity)
+	kqueue.remove_fd_from_kqueue(kq_fd, client_fd)
+}
+
+// Accept loop for main thread
+fn handle_accept_loop(socket_fd int, main_kq int, worker_kqs []int) {
+	mut worker_idx := 0
+	mut events := [1]C.kevent{}
+
+	for {
+		nev := kqueue.wait_kqueue(main_kq, &events[0], 1, -1)
+		if nev <= 0 {
+			if nev < 0 && C.errno != C.EINTR {
+				C.perror(c'kevent accept')
+			}
+			continue
 		}
-		else {
-			eprintln('Selected io_multiplexing is not supported on Darwin/macOS.')
-			exit(1)
+
+		if events[0].filter == kqueue.evfilt_read {
+			for {
+				client_fd := C.accept(socket_fd, C.NULL, C.NULL)
+				if client_fd < 0 {
+					break
+				}
+				socket.set_blocking(client_fd, false)
+
+				target_kq := worker_kqs[worker_idx]
+				worker_idx = (worker_idx + 1) % worker_kqs.len
+
+				if kqueue.add_fd_to_kqueue(target_kq, client_fd, kqueue.evfilt_read) < 0 {
+					C.close(client_fd)
+				}
+			}
 		}
 	}
 }
 
-fn (mut server Server) run_kqueue() {
-	server.socket_fd = socket.create_server_socket(server.port)
-	if server.socket_fd < 0 {
+pub fn run_kqueue_backend(socket_fd int, handler fn ([]u8, int) ![]u8, port int, mut threads []thread) {
+	main_kq := kqueue.create_kqueue_fd()
+	if main_kq < 0 {
+		return
+	}
+	if kqueue.add_fd_to_kqueue(main_kq, socket_fd, kqueue.evfilt_read) < 0 {
+		C.close(main_kq)
 		return
 	}
 
-	kq_fd := kqueue.create_kqueue_fd()
-	if kq_fd < 0 {
-		socket.close_socket(server.socket_fd)
-		eprintln('Failed to create kqueue fd')
-		exit(1)
-	}
+	n_workers := max_thread_pool_size
+	mut worker_kqs := []int{len: n_workers}
 
-	if kqueue.add_fd_to_kqueue(kq_fd, server.socket_fd, -1) < 0 { // -1 = EVFILT_READ
-		socket.close_socket(server.socket_fd)
-		C.close(kq_fd)
-		eprintln('Failed to add server socket to kqueue')
-		exit(1)
-	}
-
-	mut callbacks := kqueue.KqueueEventCallbacks{
-		on_read: fn [handler := server.request_handler, kq_fd] (fd int) {
-			// Accept new connection
-			mut addr := socket.C.sockaddr_in{}
-			mut addrlen := u32(sizeof(socket.C.sockaddr_in))
-			client_fd := C.accept(fd, &addr, &addrlen)
-			if client_fd < 0 {
-				C.perror(c'accept')
-				return
+	for i in 0 .. n_workers {
+		kq := kqueue.create_kqueue_fd()
+		if kq < 0 {
+			// Cleanup already created
+			for j in 0 .. i {
+				C.close(worker_kqs[j])
 			}
-			// Set non-blocking
-			socket.set_blocking(client_fd, false)
-			// Register client fd for read events
-			kqueue.add_fd_to_kqueue(kq_fd, client_fd, -1)
-		},
-		on_write: fn (_ int) {},
+			C.close(main_kq)
+			return
+		}
+		worker_kqs[i] = kq
+
+		callbacks := kqueue.KqueueEventCallbacks{
+			on_read:  fn [handler, kq] (fd int) {
+				handle_readable_fd(handler, kq, fd)
+			}
+			on_write: fn (_ int) {}
+		}
+		threads[i] = spawn kqueue.process_kqueue_events(callbacks, kq)
 	}
 
-	for i in 0 .. max_thread_pool_size {
-		server.threads[i] = spawn kqueue.process_kqueue_events(callbacks, kq_fd)
-	}
+	println('listening on http://localhost:${port}/ (kqueue)')
+	handle_accept_loop(socket_fd, main_kq, worker_kqs)
+}
 
-	println('listening on http://localhost:${server.port}/ (kqueue)')
-
-	// Keep main thread alive
-	for {
-		C.sleep(1)
+pub fn (mut server Server) run() {
+	match server.io_multiplexing {
+		.kqueue_backend {
+			run_kqueue_backend(server.socket_fd, server.request_handler, server.port, mut
+				server.threads)
+		}
+		else {
+			eprintln('Only kqueue_backend is supported on macOS/Darwin.')
+			exit(1)
+		}
 	}
 }

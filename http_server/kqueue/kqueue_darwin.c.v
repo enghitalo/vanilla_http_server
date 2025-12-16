@@ -1,4 +1,3 @@
-// kqueue_darwin.c.v
 // Darwin (macOS) implementation for kqueue-based HTTP server
 
 module kqueue
@@ -14,8 +13,16 @@ fn C.kevent(kq int, changelist &C.kevent, nchanges int, eventlist &C.kevent, nev
 fn C.close(fd int) int
 fn C.perror(s &char)
 
+// Proper constants
+pub const evfilt_read = i16(-1)
+pub const evfilt_write = i16(-2)
+pub const ev_add = u16(0x0001)
+pub const ev_delete = u16(0x0002)
+pub const ev_eof = u16(0x0010)
+
 // V struct for kevent (mirrors C struct)
 pub struct C.kevent {
+pub mut:
 	ident  usize
 	filter i16
 	flags  u16
@@ -24,7 +31,7 @@ pub struct C.kevent {
 	udata  voidptr
 }
 
-// Callbacks for kqueue-driven IO events.
+// Callbacks for kqueue-driven IO events
 pub struct KqueueEventCallbacks {
 pub:
 	on_read  fn (fd int) @[required]
@@ -45,7 +52,7 @@ pub fn add_fd_to_kqueue(kq int, fd int, filter i16) int {
 	mut kev := C.kevent{
 		ident:  usize(fd)
 		filter: filter
-		flags:  u16(0x0001) // EV_ADD
+		flags:  ev_add
 		fflags: 0
 		data:   0
 		udata:  unsafe { nil }
@@ -58,26 +65,39 @@ pub fn add_fd_to_kqueue(kq int, fd int, filter i16) int {
 }
 
 // Remove a file descriptor from a kqueue instance.
-pub fn remove_fd_from_kqueue(kq int, fd int, filter i16) {
+pub fn remove_fd_from_kqueue(kq int, fd int) {
 	mut kev := C.kevent{
-		ident:  usize(fd)
-		filter: filter
-		flags:  u16(0x0002) // EV_DELETE
-		fflags: 0
-		data:   0
-		udata:  unsafe { nil }
+		ident: usize(fd)
+		flags: ev_delete
 	}
+	// Remove both read and write filters
+	kev.filter = evfilt_read
+	C.kevent(kq, &kev, 1, C.NULL, 0, C.NULL)
+	kev.filter = evfilt_write
 	C.kevent(kq, &kev, 1, C.NULL, 0, C.NULL)
 	C.close(fd)
 }
 
+// Wait for kqueue events (used by accept loop and workers)
+pub fn wait_kqueue(kq int, events &C.kevent, nevents int, timeout int) int {
+	mut ts := C.timespec{}
+	mut tsp := &ts
+	if timeout < 0 {
+		tsp = C.NULL
+	} else {
+		tsp.sec = timeout / 1000
+		tsp.nsec = (timeout % 1000) * 1000000
+	}
+	return C.kevent(kq, C.NULL, 0, events, nevents, tsp)
+}
+
 // Worker event loop for kqueue io_multiplexing. Processes events for a given kqueue fd using provided callbacks.
-pub fn process_kqueue_events(event_callbacks KqueueEventCallbacks, kq int) {
+pub fn process_kqueue_events(callbacks KqueueEventCallbacks, kq int) {
 	mut events := [1024]C.kevent{}
 	for {
-		nev := C.kevent(kq, C.NULL, 0, &events[0], 1024, C.NULL)
+		nev := wait_kqueue(kq, &events[0], 1024, -1)
 		if nev < 0 {
-			if C.errno == 4 { // EINTR
+			if C.errno == C.EINTR {
 				continue
 			}
 			C.perror(c'kevent wait')
@@ -85,15 +105,14 @@ pub fn process_kqueue_events(event_callbacks KqueueEventCallbacks, kq int) {
 		}
 		for i in 0 .. nev {
 			fd := int(events[i].ident)
-			if events[i].flags & 0x0010 != 0 { // EV_EOF
-				remove_fd_from_kqueue(kq, fd, events[i].filter)
+			if (events[i].flags & ev_eof) != 0 || events[i].fflags != 0 {
+				remove_fd_from_kqueue(kq, fd)
 				continue
 			}
-			if events[i].filter == -1 { // EVFILT_READ
-				event_callbacks.on_read(fd)
-			}
-			if events[i].filter == -2 { // EVFILT_WRITE
-				event_callbacks.on_write(fd)
+			if events[i].filter == evfilt_read {
+				callbacks.on_read(fd)
+			} else if events[i].filter == evfilt_write {
+				callbacks.on_write(fd)
 			}
 		}
 	}
