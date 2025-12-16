@@ -56,13 +56,13 @@ fn C.PostQueuedCompletionStatus(completion_port voidptr, dw_number_of_bytes_tran
 
 fn C.CloseHandle(h_object voidptr) bool
 
-fn C.WSARecv(s SOCKET, lp_buffers &C.WSABUF, dw_buffer_count u32, lp_number_of_bytes_recvd &u32,
+fn C.WSARecv(s u64, lp_buffers &C.WSABUF, dw_buffer_count u32, lp_number_of_bytes_recvd &u32,
 	lp_flags &u32, lp_overlapped &C.OVERLAPPED, lp_completion_routine voidptr) int
 
-fn C.WSASend(s SOCKET, lp_buffers &C.WSABUF, dw_buffer_count u32, lp_number_of_bytes_sent &u32,
+fn C.WSASend(s u64, lp_buffers &C.WSABUF, dw_buffer_count u32, lp_number_of_bytes_sent &u32,
 	dw_flags u32, lp_overlapped &C.OVERLAPPED, lp_completion_routine voidptr) int
 
-fn C.AcceptEx(s_listen_socket SOCKET, s_accept_socket SOCKET, lp_output_buffer voidptr,
+fn C.AcceptEx(s_listen_socket u64, s_accept_socket u64, lp_output_buffer voidptr,
 	dw_receive_data_length u32, dw_local_address_length u32, dw_remote_address_length u32,
 	lpdw_bytes_received &u32, lp_overlapped &C.OVERLAPPED) bool
 

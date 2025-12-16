@@ -25,17 +25,17 @@ const socket_error = -1
 fn C.WSAStartup(wVersionRequired u16, lpWSAData voidptr) int
 fn C.WSACleanup() int
 fn C.WSAGetLastError() int
-fn C.closesocket(s SOCKET) int
-fn C.ioctlsocket(s SOCKET, cmd int, argptr &u32) int
-fn C.WSAIoctl(s SOCKET, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
+fn C.closesocket(s u64) int
+fn C.ioctlsocket(s u64, cmd int, argptr &u32) int
+fn C.WSAIoctl(s u64, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
 	lpvOutBuffer voidptr, cbOutBuffer u32, lpcbBytesReturned &u32,
 	lpOverlapped voidptr, lpCompletionRoutine voidptr) int
-fn C.accept(s SOCKET, addr voidptr, addrlen &int) SOCKET
-fn C.bind(s SOCKET, name voidptr, namelen int) int
-fn C.connect(s SOCKET, name voidptr, namelen int) int
-fn C.listen(s SOCKET, backlog int) int
-fn C.socket(socket_family int, socket_type int, protocol int) SOCKET
-fn C.setsockopt(s SOCKET, level int, optname int, optval voidptr, optlen int) int
+fn C.accept(s u64, addr voidptr, addrlen &int) u64
+fn C.bind(s u64, name voidptr, namelen int) int
+fn C.connect(s u64, name voidptr, namelen int) int
+fn C.listen(s u64, backlog int) int
+fn C.socket(socket_family int, socket_type int, protocol int) u64
+fn C.setsockopt(s u64, level int, optname int, optval voidptr, optlen int) int
 fn C.htons(hostshort u16) u16
 fn C.htonl(hostlong u32) u32
 fn C.ntohs(netshort u16) u16
