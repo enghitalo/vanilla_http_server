@@ -18,7 +18,7 @@ pub struct CompletionKey {
 pub:
 	socket_handle int
 	operation     IOOperation
-	callback      fn (int, IOOperation, []u8) // socket_fd, operation, data
+	callback      fn (int, IOOperation, []u8) @[required] // socket_fd, operation, data
 }
 
 pub enum IOOperation {

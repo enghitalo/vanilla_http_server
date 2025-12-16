@@ -28,13 +28,13 @@ fn C.WSAGetLastError() int
 fn C.closesocket(s SOCKET) int
 fn C.ioctlsocket(s SOCKET, cmd int, argptr &u32) int
 fn C.WSAIoctl(s SOCKET, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
-lpvOutBuffer voidptr, cbOutBuffer u32, lpcbBytesReturned &u32,
-lpOverlapped voidptr, lpCompletionRoutine voidptr) int
+	lpvOutBuffer voidptr, cbOutBuffer u32, lpcbBytesReturned &u32,
+	lpOverlapped voidptr, lpCompletionRoutine voidptr) int
 fn C.accept(s SOCKET, addr voidptr, addrlen &int) SOCKET
 fn C.bind(s SOCKET, name voidptr, namelen int) int
 fn C.connect(s SOCKET, name voidptr, namelen int) int
 fn C.listen(s SOCKET, backlog int) int
-fn C.socket(af int, type int, protocol int) SOCKET
+fn C.socket(af int, type, int, protocol int) SOCKET
 fn C.setsockopt(s SOCKET, level int, optname int, optval voidptr, optlen int) int
 fn C.htons(hostshort u16) u16
 fn C.htonl(hostlong u32) u32
@@ -43,7 +43,7 @@ fn C.ntohl(netlong u32) u32
 fn C.getaddrinfo(nodename &char, servname &char, hints voidptr, res &&voidptr) int
 fn C.freeaddrinfo(res voidptr)
 fn C.getnameinfo(sa voidptr, salen int, host &char, hostlen int,
-serv &char, servlen int, flags int) int
+	serv &char, servlen int, flags int) int
 fn C.inet_pton(af int, src &char, dst voidptr) int
 fn C.inet_ntop(af int, src voidptr, dst &char, size int) &char
 

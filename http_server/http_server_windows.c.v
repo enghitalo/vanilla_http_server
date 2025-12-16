@@ -20,7 +20,7 @@ const buffer_size = 8192
 struct WorkerContext {
 pub mut:
 	iocp_handle voidptr
-	handler     fn ([]u8, int) ![]u8
+	handler     fn ([]u8, int) ![]u8 @[required]
 	running     bool
 	thread_id   u32
 }
