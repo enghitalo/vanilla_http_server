@@ -3,6 +3,7 @@ module socket
 pub const max_connection_size = 1024
 
 #include <fcntl.h>
+#include <sys/socket.h>
 
 $if !windows {
 	#include <netinet/in.h>
@@ -81,14 +82,22 @@ pub fn create_server_socket(port int) int {
 	set_blocking(server_fd, false)
 
 	opt := 1
-
-	// On macOS, also set SO_REUSEPORT to allow quick restarts and multiple listeners
-	// On Linux/other Unix, use SO_REUSEPORT for socket sharding/load balancing
-	if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEPORT, &opt, sizeof(opt)) < 0 {
-		eprintln(@LOCATION)
-		C.perror(c'setsockopt SO_REUSEPORT failed')
-		close_socket(server_fd)
-		exit(1)
+	$if linux {
+		// On Linux/other Unix, use SO_REUSEPORT for socket sharding/load balancing
+		// SO_REUSEPORT allows multiple workers to bind() and accept() independently
+		if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEPORT, &opt, sizeof(opt)) < 0 {
+			eprintln(@LOCATION)
+			C.perror(c'setsockopt SO_REUSEPORT failed')
+			close_socket(server_fd)
+			exit(1)
+		}
+	} $else {
+		if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) < 0 {
+			eprintln(@LOCATION)
+			C.perror(c'setsockopt SO_REUSEADDR failed')
+			close_socket(server_fd)
+			exit(1)
+		}
 	}
 
 	// Bind to INADDR_ANY (0.0.0.0)
