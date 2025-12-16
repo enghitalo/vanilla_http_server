@@ -8,13 +8,13 @@ module socket
 
 pub fn init_winsock() ! {
 	mut wsa_data := WSAData{}
-	if WSAStartup(0x202, &wsa_data) != 0 {
+	if C.WSAStartup(0x202, &wsa_data) != 0 {
 		return error('WSAStartup failed')
 	}
 }
 
 pub fn cleanup_winsock() {
-	WSACleanup()
+	C.WSACleanup()
 }
 
 type SOCKET = u64
