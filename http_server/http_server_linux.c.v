@@ -54,7 +54,11 @@ fn handle_readable_fd(request_handler fn ([]u8, int) ![]u8, epoll_fd int, client
 		return
 	}
 
-	$if force_keep_alive ? {
+	$if force_keep_alive ? || test {
+		// Keep the connection alive unconditionally
+		// through -d force_keep_alive flag or during tests
+		// tests need to be alive due to how
+		// they are implemented in `(mut s Server) test`
 		return
 	} $else {
 		mut keep_alive := false

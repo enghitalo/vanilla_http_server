@@ -23,7 +23,6 @@ pub mut:
 }
 
 // Test method: send raw HTTP requests directly to the server socket, process sequentially, and shutdown after last response.
-
 pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
 	println('[test] Starting server thread...')
 	// Use a channel to signal when the server is ready
@@ -32,19 +31,27 @@ pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
 	spawn fn [mut s, mut threads, ready_ch] () {
 		println('[test] Server backend setup...')
 		ready_ch <- true
-		match s.io_multiplexing {
-			.epoll {
-				println('[test] Running epoll backend')
-				run_epoll_backend(s.socket_fd, s.request_handler, s.port, mut threads)
+		$if linux {
+			match s.io_multiplexing {
+				.epoll {
+					println('[test] Running epoll backend')
+					run_epoll_backend(s.socket_fd, s.request_handler, s.port, mut threads)
+				}
+				.io_uring_backend {
+					println('[test] Running io_uring backend')
+					run_io_uring_backend(s.request_handler, s.port, mut threads)
+				}
+				else {
+					eprintln('Selected io_multiplexing is not supported on Linux.')
+					exit(1)
+				}
 			}
-			.io_uring_backend {
-				println('[test] Running io_uring backend')
-				run_io_uring_backend(s.request_handler, s.port, mut threads)
-			}
-			else {
-				eprintln('Selected io_multiplexing is not supported on Linux.')
-				exit(1)
-			}
+		} $else $if darwin {
+			println('[test] Running kqueue backend')
+			run_kqueue_backend(s.socket_fd, s.request_handler, s.port, mut threads)
+		} $else {
+			eprintln('Unsupported OS for http_server.')
+			exit(1)
 		}
 	}()
 
