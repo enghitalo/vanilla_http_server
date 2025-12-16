@@ -132,19 +132,19 @@ pub fn close_handle(handle voidptr) bool {
 }
 
 pub fn start_accept_ex(listen_socket int, accept_socket int, overlapped &C.OVERLAPPED) bool {
-	return C.AcceptEx(SOCKET(listen_socket), SOCKET(accept_socket), unsafe { nil }, 0,
+	return C.AcceptEx(u64(listen_socket), SOCKET(accept_socket), unsafe { nil }, 0,
 		sizeof(C.sockaddr_in) + 16, sizeof(C.sockaddr_in) + 16, unsafe { nil }, overlapped)
 }
 
 pub fn post_recv(socket_fd int, buffers &C.WSABUF, buffer_count u32, flags &u32,
 	overlapped &C.OVERLAPPED) int {
-	return C.WSARecv(SOCKET(socket_fd), buffers, buffer_count, unsafe { nil }, flags,
+	return C.WSARecv(u64(socket_fd), buffers, buffer_count, unsafe { nil }, flags,
 		overlapped, unsafe { nil })
 }
 
 pub fn post_send(socket_fd int, buffers &C.WSABUF, buffer_count u32, flags u32,
 	overlapped &C.OVERLAPPED) int {
-	return C.WSASend(SOCKET(socket_fd), buffers, buffer_count, unsafe { nil }, flags,
+	return C.WSASend(u64(socket_fd), buffers, buffer_count, unsafe { nil }, flags,
 		overlapped, unsafe { nil })
 }
 

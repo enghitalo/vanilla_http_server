@@ -75,7 +75,7 @@ pub fn connect_to_server(port int) !int {
 pub fn set_blocking(fd int, blocking bool) {
 	$if windows {
 		mut mode := u32(if blocking { 0 } else { 1 })
-		if C.ioctlsocket(SOCKET(fd), 0x8004667E, &mode) != 0 // FIONBIO
+		if C.ioctlsocket(u64(fd), 0x8004667E, &mode) != 0 // FIONBIO
 		  {
 			eprintln(@LOCATION + ' ioctlsocket failed: ${C.WSAGetLastError()}')
 		}
@@ -92,7 +92,7 @@ pub fn set_blocking(fd int, blocking bool) {
 
 pub fn close_socket(fd int) {
 	$if windows {
-		C.closesocket(SOCKET(fd))
+		C.closesocket(u64(fd))
 	} $else {
 		C.close(fd)
 	}

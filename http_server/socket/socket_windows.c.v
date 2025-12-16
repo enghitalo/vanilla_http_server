@@ -34,7 +34,7 @@ fn C.accept(s SOCKET, addr voidptr, addrlen &int) SOCKET
 fn C.bind(s SOCKET, name voidptr, namelen int) int
 fn C.connect(s SOCKET, name voidptr, namelen int) int
 fn C.listen(s SOCKET, backlog int) int
-fn C.socket(af int, type, int, protocol int) SOCKET
+fn C.socket(socket_family int, socket_type int, protocol int) SOCKET
 fn C.setsockopt(s SOCKET, level int, optname int, optval voidptr, optlen int) int
 fn C.htons(hostshort u16) u16
 fn C.htonl(hostlong u32) u32
@@ -80,9 +80,9 @@ pub fn connect_to_server_on_windows(port int) !int {
 	}
 
 	println('[client] Connecting to server on port ${port} (0.0.0.0)...')
-	if C.connect(SOCKET(client_fd), voidptr(&addr), sizeof(addr)) == socket_error {
+	if C.connect(u64(client_fd), voidptr(&addr), sizeof(addr)) == socket_error {
 		println('[client] Failed to connect to server: error=${C.WSAGetLastError()}')
-		C.closesocket(SOCKET(client_fd))
+		C.closesocket(u64(client_fd))
 		return error('Failed to connect to server')
 	}
 
@@ -105,7 +105,7 @@ pub fn create_server_socket_on_windows(port int) int {
 	set_blocking(server_fd, false)
 
 	opt := 1
-	if C.setsockopt(SOCKET(server_fd), C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) == socket_error {
+	if C.setsockopt(u64(server_fd), C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) == socket_error {
 		eprintln(@LOCATION + ' setsockopt SO_REUSEADDR failed: ${C.WSAGetLastError()}')
 		close_socket(server_fd)
 		exit(1)
@@ -120,13 +120,13 @@ pub fn create_server_socket_on_windows(port int) int {
 		sin_zero:   [8]u8{}
 	}
 
-	if C.bind(SOCKET(server_fd), voidptr(&server_addr), sizeof(server_addr)) == socket_error {
+	if C.bind(u64(server_fd), voidptr(&server_addr), sizeof(server_addr)) == socket_error {
 		eprintln(@LOCATION + ' Bind failed: ${C.WSAGetLastError()}')
 		close_socket(server_fd)
 		exit(1)
 	}
 
-	if C.listen(SOCKET(server_fd), max_connection_size) == socket_error {
+	if C.listen(u64(server_fd), max_connection_size) == socket_error {
 		eprintln(@LOCATION + ' Listen failed: ${C.WSAGetLastError()}')
 		close_socket(server_fd)
 		exit(1)

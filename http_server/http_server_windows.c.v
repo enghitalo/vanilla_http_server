@@ -103,7 +103,7 @@ fn handle_accept_completion(io_data &iocp.IOData, handler fn ([]u8, int) ![]u8,
 
 	// Set socket options for accepted connection
 	opt := 1
-	C.setsockopt(SOCKET(socket_fd), C.SOL_SOCKET, C.SO_UPDATE_ACCEPT_CONTEXT, &socket_fd,
+	C.setsockopt(u64(socket_fd), C.SOL_SOCKET, C.SO_UPDATE_ACCEPT_CONTEXT, &socket_fd,
 		sizeof(socket_fd))
 
 	// Associate the accepted socket with IOCP
