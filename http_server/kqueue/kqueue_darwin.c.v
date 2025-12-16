@@ -85,8 +85,8 @@ pub fn wait_kqueue(kq int, events &C.kevent, nevents int, timeout int) int {
 	if timeout < 0 {
 		tsp = C.NULL
 	} else {
-		tsp.tv_sec = C.time_t(timeout / 1000)
-		tsp.tv_nsec = C.long((timeout % 1000) * 1000000)
+		tsp.tv_sec = i64(timeout / 1000)
+		tsp.tv_nsec = i64((timeout % 1000) * 1000000)
 	}
 	return C.kevent(kq, C.NULL, 0, events, nevents, tsp)
 }
