@@ -27,7 +27,15 @@ jobs:
       - name: Set up V
         uses: vlang/setup-v@v1.4
       - name: Remove Vlang folder to avoid conflicts
-        run: rm -rf -v ./vlang || true
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            if [ -d vlang ]; then
+              rm -rfv vlang || true
+            fi
+          else
+            rm -rf -v ./vlang || true
+          fi
       - name: Install dependencies
         shell: bash
         run: |
