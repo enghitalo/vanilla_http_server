@@ -1,0 +1,39 @@
+name: Build & Test Examples (Linux)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  examples-building-and-testing:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.folder }}
+    strategy:
+      fail-fast: false # Continue other jobs if one fails
+      matrix:
+        folder:
+          - examples/**/src
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up V
+        uses: vlang/setup-v@v1.4
+      - name: Remove Vlang folder to avoid conflicts
+        shell: bash
+        run: |
+          rm -rf -v ./vlang || true
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev liburing-dev linux-libc-dev
+      - name: Build ${{ matrix.folder }}
+        shell: bash
+        run: |
+          v "${{ matrix.folder }}"
+      - name: Test ${{ matrix.folder }}
+        shell: bash
+        run: |
+          v test "${{ matrix.folder }}"
