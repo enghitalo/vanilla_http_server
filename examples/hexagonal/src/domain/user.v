@@ -1,11 +1,11 @@
 module domain
 
 pub struct User {
-	pub:
-		id       string
-		username string
-		email    string
-		password string // hashed
+pub:
+	id       string
+	username string
+	email    string
+	password string // hashed
 }
 
 pub interface UserRepository {
@@ -14,4 +14,3 @@ pub interface UserRepository {
 	create(user User) !User
 	list() ![]User
 }
-

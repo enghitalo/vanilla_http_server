@@ -1,11 +1,11 @@
 module database
 
 import db.pg
-
 import db.sqlite
 
 // SQLite connection pool (trivial, as SQLite is file-based and thread-safe for most use cases)
 pub struct SqliteConnectionPool {
+mut:
 	db sqlite.DB
 }
 
@@ -24,8 +24,8 @@ pub fn (mut pool SqliteConnectionPool) release(_ sqlite.DB) {
 	// No-op for SQLite
 }
 
-pub fn (mut pool SqliteConnectionPool) close() {
-	pool.db.close()
+pub fn (mut pool SqliteConnectionPool) close() ! {
+	pool.db.close()!
 }
 
 pub struct ConnectionPool {
@@ -54,9 +54,9 @@ pub fn (mut pool ConnectionPool) release(conn pg.DB) {
 	pool.connections <- conn
 }
 
-pub fn (mut pool ConnectionPool) close() {
+pub fn (mut pool ConnectionPool) close() ! {
 	for _ in 0 .. pool.connections.len {
 		mut conn := <-pool.connections or { break }
-		conn.close()
+		conn.close()!
 	}
 }

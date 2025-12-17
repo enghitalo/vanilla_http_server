@@ -12,11 +12,11 @@ pub fn new_auth_usecase(service domain.AuthService) AuthUseCase {
 	}
 }
 
-pub fn (a AuthUseCase) login(username string, password string) !domain.User {
+// pub fn (a AuthUseCase) login(username string, password string) (?domain.User, ?IError) {
+pub fn (a AuthUseCase) login(username string, password string) ?domain.User {
 	credentials := domain.AuthCredentials{
 		username: username
 		password: password
 	}
-	return a.service.authenticate(credentials)
+	return a.service.authenticate(credentials) or { return none }
 }
-

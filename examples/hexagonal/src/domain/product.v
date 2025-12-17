@@ -1,10 +1,10 @@
 module domain
 
 pub struct Product {
-	pub:
-		id    string
-		name  string
-		price f64
+pub:
+	id    string
+	name  string
+	price f64
 }
 
 pub interface ProductRepository {
@@ -12,4 +12,3 @@ pub interface ProductRepository {
 	create(product Product) !Product
 	list() ![]Product
 }
-

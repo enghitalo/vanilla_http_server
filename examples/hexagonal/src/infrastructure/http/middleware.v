@@ -13,11 +13,12 @@ pub fn new_simple_auth_service(repo domain.UserRepository) SimpleAuthService {
 }
 
 pub fn (a SimpleAuthService) authenticate(credentials domain.AuthCredentials) !domain.User {
-	user := a.repo.find_by_username(credentials.username) or { return none }
+	user := a.repo.find_by_username(credentials.username) or {
+		return error('Authentication failed')
+	}
 	// In production, use a secure password hash check
-	if user != none && user.password == credentials.password {
+	if user.password == credentials.password {
 		return user
 	}
-	return none
+	return error('Authentication failed')
 }
-
