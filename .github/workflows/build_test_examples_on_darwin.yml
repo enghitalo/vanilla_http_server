@@ -1,0 +1,45 @@
+name: Build & Test Examples (MacOS)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  examples-building-and-testing:
+    runs-on: macos-latest
+    name: ${{ matrix.folder }}
+    strategy:
+      fail-fast: false # Continue other jobs if one fails
+      matrix:
+        folder:
+          - examples/database/src
+          - examples/etag/src
+          - examples/hexagonal/src
+          - examples/io_uring_demo/src
+          - examples/simple/src
+          - examples/simple2/src
+          - examples/sse/src
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up V
+        uses: vlang/setup-v@v1.4
+      - name: Remove Vlang folder to avoid conflicts
+        shell: bash
+        run: |
+          rm -rf -v ./vlang || true
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+            brew update
+            brew install sqlite3
+      - name: Build ${{ matrix.folder }}
+        shell: bash
+        run: |
+          v "${{ matrix.folder }}"
+      - name: Test ${{ matrix.folder }}
+        shell: bash
+        run: |
+          v test "${{ matrix.folder }}"
