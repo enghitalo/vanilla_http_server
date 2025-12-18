@@ -11,7 +11,7 @@ fn test_handle_request_get_home() {
 fn test_handle_request_get_user() {
 	req_buffer := 'GET /user/123 HTTP/1.1\r\n\r\n'.bytes()
 	res := handle_request(req_buffer, -1) or { panic(err) }
-	assert res == 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\nConnection: keep-alive\r\n\r\n123'.bytes()
+	assert res.bytestr() == 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nETag: 202cb962ac59075b964b07152d234b70\r\nContent-Length: 3\r\nAccess-Control-Allow-Origin: *\r\n\r\n123'
 }
 
 fn test_handle_request_post_user() {
