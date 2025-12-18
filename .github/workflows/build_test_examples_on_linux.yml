@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           v $(pwd)/${{ matrix.folder }}
-      - name: Test $(pwd)/examples/**/src
+      - name: Test ${{ matrix.folder }}
         shell: bash
         run: |
-          v test $(pwd)/examples/**/
+          v test $(pwd)/${{ matrix.folder }}
