@@ -1,6 +1,7 @@
 module main
 
 import db.pg
+import domain
 import infrastructure.database
 import infrastructure.repositories
 import infrastructure.http
@@ -26,13 +27,13 @@ fn main() {
 				panic('Failed to create connection pool: ' + err.msg())
 			}
 			defer {
-				pool.close()
+				pool.close() or { panic('Failed to close pool: ' + err.msg()) }
 			}
 			mut db := pool.acquire() or { panic('Failed to acquire DB connection: ' + err.msg()) }
 			defer {
 				pool.release(db)
 			}
-			repositories.new_pg_user_repository(db)
+			domain.UserRepository(repositories.new_pg_user_repository(db))
 		}
 		'sqlite' {
 			// SQLite connection
@@ -40,17 +41,16 @@ fn main() {
 				panic('Failed to open SQLite DB: ' + err.msg())
 			}
 			defer {
-				pool.close()
+				pool.close() or { panic('Failed to close SQLite pool: ' + err.msg()) }
 			}
 			db := pool.acquire() or { panic('Failed to acquire SQLite DB: ' + err.msg()) }
-			repositories.new_sqlite_user_repository(db)
+			domain.UserRepository(repositories.new_sqlite_user_repository(db))
 		}
 		else {
 			panic('Unknown db_backend')
 		}
 	}
 
-	// TODO: implement ProductRepository for real use
 	product_repo := repositories.DummyProductRepository{}
 
 	// Infrastructure: auth service
@@ -73,4 +73,8 @@ fn main() {
 	println('List users:')
 	resp3 := http.handle_list_users(user_uc)
 	println(resp3.bytestr())
+
+	println('Add product:')
+	resp4 := http.handle_add_product(product_uc, 'Laptop', 999.99)
+	println(resp4.bytestr())
 }

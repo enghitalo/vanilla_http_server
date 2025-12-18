@@ -22,10 +22,10 @@ pub fn (r PgUserRepository) find_by_id(id string) !domain.User {
 	}
 	row := rows[0]
 	return domain.User{
-		// id:       row.vals[0] or { '' }
-		// username: row.vals[1] or { '' }
-		// email:    row.vals[2] or { '' }
-		// password: row.vals[3] or { '' }
+		id:       row.vals[0] or { '' }
+		username: row.vals[1] or { '' }
+		email:    row.vals[2] or { '' }
+		password: row.vals[3] or { '' }
 	}
 }
 
@@ -37,10 +37,10 @@ pub fn (r PgUserRepository) find_by_username(username string) !domain.User {
 	}
 	row := rows[0]
 	return domain.User{
-		// id:       row.vals[0] or { '' }
-		// username: row.vals[1] or { '' }
-		// email:    row.vals[2] or { '' }
-		// password: row.vals[3] or { '' }
+		id:       row.vals[0] or { '' }
+		username: row.vals[1] or { '' }
+		email:    row.vals[2] or { '' }
+		password: row.vals[3] or { '' }
 	}
 }
 
@@ -61,10 +61,10 @@ pub fn (r PgUserRepository) list() ![]domain.User {
 	rows := r.db.exec_param_many('SELECT id, username, email, password FROM users', [])!
 	for row in rows {
 		users << domain.User{
-			// id:       row.vals[0] or { '' }
-			// username: row.vals[1] or { '' }
-			// email:    row.vals[2] or { '' }
-			// password: row.vals[3] or { '' }
+			id:       row.vals[0] or { '' }
+			username: row.vals[1] or { '' }
+			email:    row.vals[2] or { '' }
+			password: row.vals[3] or { '' }
 		}
 	}
 	return users
