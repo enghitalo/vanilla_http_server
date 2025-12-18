@@ -1,21 +1,31 @@
 module main
 
 import db.pg
+import db.sqlite
 import domain
 import infrastructure.database
 import infrastructure.repositories
 import infrastructure.http
 import application
-// import domain
+import pool
+import time
 
 fn main() {
 	// Choose database backend: "pg" or "sqlite"
 	db_backend := 'sqlite' // change to 'pg' for PostgreSQL
 
+	// Pool config
+	pool_cfg := pool.ConnectionPoolConfig{
+		max_conns:      10
+		min_idle_conns: 2
+		max_lifetime:   1 * time.hour
+		idle_timeout:   10 * time.minute
+		get_timeout:    5 * time.second
+	}
+
 	// User repository (switchable)
 	user_repo := match db_backend {
 		'pg' {
-			// PostgreSQL connection
 			config := pg.Config{
 				host:     'localhost'
 				port:     5432
@@ -23,28 +33,32 @@ fn main() {
 				password: 'postgres'
 				dbname:   'hexagonal'
 			}
-			mut pool := database.new_connection_pool(config, 5) or {
-				panic('Failed to create connection pool: ' + err.msg())
+			mut dbpool := database.new_pg_pool(config, pool_cfg) or {
+				panic('Failed to create PG pool: ' + err.msg())
 			}
-			defer {
-				pool.close() or { panic('Failed to close pool: ' + err.msg()) }
+			defer { dbpool.close() or { panic('Failed to close PG pool: ' + err.msg()) } }
+			get_conn := fn [mut dbpool] () !pg.DB {
+				conn := dbpool.acquire()!
+				return conn as pg.DB
 			}
-			mut db := pool.acquire() or { panic('Failed to acquire DB connection: ' + err.msg()) }
-			defer {
-				pool.release(db)
+			release_conn := fn [mut dbpool] (conn pg.DB) ! {
+				dbpool.release(conn)!
 			}
-			domain.UserRepository(repositories.new_pg_user_repository(db))
+			domain.UserRepository(repositories.new_pg_user_repository(get_conn, release_conn))
 		}
 		'sqlite' {
-			// SQLite connection
-			mut pool := database.new_sqlite_connection_pool('hexagonal.db') or {
-				panic('Failed to open SQLite DB: ' + err.msg())
+			mut dbpool := database.new_sqlite_pool('hexagonal.db', pool_cfg) or {
+				panic('Failed to create SQLite pool: ' + err.msg())
 			}
-			defer {
-				pool.close() or { panic('Failed to close SQLite pool: ' + err.msg()) }
+			defer { dbpool.close() or { panic('Failed to close SQLite pool: ' + err.msg()) } }
+			get_conn := fn [mut dbpool] () !sqlite.DB {
+				conn := dbpool.acquire()!
+				return conn as sqlite.DB
 			}
-			db := pool.acquire() or { panic('Failed to acquire SQLite DB: ' + err.msg()) }
-			domain.UserRepository(repositories.new_sqlite_user_repository(db))
+			release_conn := fn [mut dbpool] (conn sqlite.DB) ! {
+				dbpool.release(conn)!
+			}
+			domain.UserRepository(repositories.new_sqlite_user_repository(get_conn, release_conn))
 		}
 		else {
 			panic('Unknown db_backend')
