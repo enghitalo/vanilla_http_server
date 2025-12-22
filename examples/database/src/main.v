@@ -1,8 +1,8 @@
 module main
 
 import http_server
-import http_server.response
-import request_parser
+import http_server.http1_1.response
+import http_server.http1_1.request_parser
 import db.pg
 
 fn handle_request(req_buffer []u8, client_conn_fd int, mut pool ConnectionPool) ![]u8 {
@@ -48,13 +48,7 @@ fn main() {
 
 	mut server := http_server.new_server(http_server.ServerConfig{
 		port:            3000
-		io_multiplexing: $if linux {
-			.epoll
-		} $else $if darwin {
-			.kqueue
-		} $else {
-			.iocp
-		}
+		io_multiplexing: unsafe { http_server.IOBackend(0) }
 		request_handler: fn [mut pool] (req_buffer []u8, client_conn_fd int) ![]u8 {
 			return handle_request(req_buffer, client_conn_fd, mut pool)
 		}

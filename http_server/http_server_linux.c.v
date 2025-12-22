@@ -6,8 +6,8 @@ module http_server
 import epoll
 import io_uring
 import socket
-import response
-import request
+import http1_1.response
+import http1_1.request
 
 #include <errno.h>
 #include <sys/epoll.h>
@@ -15,6 +15,12 @@ import request
 fn C.perror(s &u8)
 fn C.sleep(seconds u32) u32
 fn C.close(fd int) int
+
+// Backend selection
+pub enum IOBackend {
+	epoll    = 0 // Linux only
+	io_uring = 1 // Linux only
+}
 
 const connection_keep_alive_variants = [
 	'Connection: keep-alive'.bytes(),
@@ -462,10 +468,6 @@ pub fn (mut server Server) run() {
 		}
 		.io_uring {
 			run_io_uring_backend(server.request_handler, server.port, mut server.threads)
-		}
-		else {
-			eprintln('Selected io_multiplexing is not supported on Linux.')
-			exit(1)
 		}
 	}
 }

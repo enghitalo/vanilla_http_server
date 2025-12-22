@@ -1,7 +1,7 @@
 module main
 
 import http_server
-import http_server.response
+import http_server.http1_1.response
 
 fn test_server_end_to_end() ! {
 	// Prepare requests
@@ -14,13 +14,7 @@ fn test_server_end_to_end() ! {
 	mut server := http_server.new_server(http_server.ServerConfig{
 		port:            8082
 		request_handler: handle_request
-		io_multiplexing: $if linux {
-			.epoll
-		} $else $if darwin {
-			.kqueue
-		} $else {
-			.iocp
-		}
+		io_multiplexing: unsafe { http_server.IOBackend(0) }
 	})!
 	responses := server.test(requests) or { panic('[test] server.test failed: ${err}') }
 	assert responses.len == 4

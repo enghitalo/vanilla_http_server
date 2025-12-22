@@ -8,9 +8,9 @@ fn test_parse_http1_request_line_valid_request() {
 
 	parse_http1_request_line(mut req) or { panic(err) }
 
-	req.method.to_string(req.buffer) == 'GET'
-	req.path.to_string(req.buffer) == '/path/to/resource'
-	req.version.to_string(req.buffer) == 'HTTP/1.1'
+	assert req.method.to_string(req.buffer) == 'GET'
+	assert req.path.to_string(req.buffer) == '/path/to/resource'
+	assert req.version.to_string(req.buffer) == 'HTTP/1.1'
 }
 
 fn test_parse_http1_request_line_invalid_request() {

@@ -3,8 +3,13 @@ module http_server
 import socket
 import runtime
 import iocp
-import response
-import request
+import http1_1.response
+import http1_1.request
+
+// Backend selection
+pub enum IOBackend {
+	iocp = 0 // Windows only
+}
 
 #include <winsock2.h>
 #include <windows.h>

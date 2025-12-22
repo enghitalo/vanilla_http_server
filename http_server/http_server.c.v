@@ -5,23 +5,19 @@ import socket
 
 const max_thread_pool_size = runtime.nr_cpus()
 
-// Backend selection
-pub enum IOBackend {
-	epoll    // Linux only
-	io_uring // Linux only
-	kqueue   // Darwin/macOS only
-	iocp     // Windows only
-}
-
 struct Server {
 pub:
 	port            int       = 3000
-	io_multiplexing IOBackend = .epoll
+	io_multiplexing IOBackend = unsafe { IOBackend(0) }
 	socket_fd       int
 pub mut:
 	threads         []thread = []thread{len: max_thread_pool_size, cap: max_thread_pool_size}
 	request_handler fn ([]u8, int) ![]u8 @[required]
 }
+
+fn C.send(__fd int, __buf voidptr, __n usize, __flags int) int
+fn C.recv(__fd int, __buf voidptr, __n usize, __flags int) int
+fn C.close(__fd int) int
 
 // Test method: send raw HTTP requests directly to the server socket, process sequentially, and shutdown after last response.
 pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
@@ -46,10 +42,6 @@ pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
 				.io_uring {
 					println('[test] Running io_uring backend')
 					run_io_uring_backend(s.request_handler, s.port, mut threads)
-				}
-				else {
-					eprintln('Selected io_multiplexing is not supported on Linux.')
-					exit(1)
 				}
 			}
 		} $else $if darwin {
@@ -156,7 +148,7 @@ pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
 pub struct ServerConfig {
 pub:
 	port            int       = 3000
-	io_multiplexing IOBackend = .epoll
+	io_multiplexing IOBackend = unsafe { IOBackend(0) }
 	request_handler fn ([]u8, int) ![]u8 @[required]
 }
 
@@ -180,8 +172,8 @@ pub fn new_server(config ServerConfig) !Server {
 	}
 
 	return Server{
-		port:            config.port
-		io_multiplexing: io_multiplexing
+		port: config.port
+		// io_multiplexing: io_multiplexing
 		socket_fd:       socket_fd
 		request_handler: config.request_handler
 		threads:         []thread{len: max_thread_pool_size, cap: max_thread_pool_size}

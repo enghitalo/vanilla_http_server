@@ -4,8 +4,13 @@ module http_server
 
 import kqueue
 import socket
-import response
-import request
+import http1_1.response
+import http1_1.request
+
+// Backend selection
+pub enum IOBackend {
+	kqueue = 0 // Darwin/macOS only
+}
 
 fn C.perror(s &char)
 fn C.close(fd int) int

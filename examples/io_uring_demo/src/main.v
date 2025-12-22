@@ -13,18 +13,7 @@ fn main() {
 
 	mut server := http_server.new_server(http_server.ServerConfig{
 		port:            3000
-		io_multiplexing: $if linux {
-			// Get io_multiplexing from command line arg, default to epoll
-			$if io_uring ? {
-				http_server.IOBackend.io_uring
-			} $else {
-				http_server.IOBackend.epoll
-			}
-		} $else $if darwin {
-			http_server.IOBackend.kqueue
-		} $else {
-			http_server.IOBackend.iocp
-		}
+		io_multiplexing: unsafe { http_server.IOBackend(0) }
 		request_handler: handle_request
 	})!
 

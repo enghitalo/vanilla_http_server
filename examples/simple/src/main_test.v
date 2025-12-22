@@ -1,6 +1,6 @@
 module main
 
-import http_server.response
+import http_server.http1_1.response
 
 fn test_simple_without_init_the_server() {
 	request1 := 'GET / HTTP/1.1\r\n\r\n'.bytes()

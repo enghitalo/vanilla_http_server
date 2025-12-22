@@ -1,8 +1,8 @@
 module main
 
 import strings
-import http_server.response
-import request_parser
+import http_server.http1_1.response
+import http_server.http1_1.request_parser
 import crypto.md5
 
 const not_modified_responsense = 'HTTP/1.1 304 Not Modified\r\n\r\n'.bytes()
