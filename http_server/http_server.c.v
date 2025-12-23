@@ -181,7 +181,7 @@ pub fn new_server(config ServerConfig) !Server {
 
 	return Server{
 		port: config.port
-		// io_multiplexing: io_multiplexing
+		io_multiplexing: config.io_multiplexing
 		socket_fd:       socket_fd
 		request_handler: config.request_handler
 		threads:         []thread{len: max_thread_pool_size, cap: max_thread_pool_size}
