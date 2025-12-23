@@ -2,6 +2,7 @@ module http_server
 
 import io_uring
 import http1_1.response
+import socket
 
 #include <errno.h>
 
@@ -30,7 +31,7 @@ fn handle_io_uring_accept(worker &io_uring.Worker, cqe &C.io_uring_cqe) {
 		$if verbose ? {
 			eprintln('[DEBUG] Re-arming accept (end of multishot or error)')
 		}
-		io_uring.prepare_accept(&worker.ring, worker.listen_fd, worker.use_multishot)
+		io_uring.prepare_accept(&worker.ring, worker.socket_fd, worker.use_multishot)
 	}
 }
 
@@ -116,10 +117,10 @@ fn dispatch_io_uring_cqe(worker &io_uring.Worker, cqe &C.io_uring_cqe, handler f
 }
 
 fn io_uring_worker_loop(worker &io_uring.Worker, handler fn ([]u8, int) ![]u8) {
-	io_uring.prepare_accept(&worker.ring, worker.listen_fd, worker.use_multishot)
+	io_uring.prepare_accept(&worker.ring, worker.socket_fd, worker.use_multishot)
 	C.io_uring_submit(&worker.ring)
 	$if verbose ? {
-		eprintln('[DEBUG] Worker started, listening on fd=${worker.listen_fd}')
+		eprintln('[DEBUG] Worker started, listening on fd=${worker.socket_fd}')
 	}
 
 	for {
@@ -169,7 +170,7 @@ pub fn run_io_uring_backend(request_handler fn ([]u8, int) ![]u8, port int, mut 
 	for i in 0 .. num_workers {
 		mut worker := &io_uring.Worker{}
 		worker.cpu_id = i
-		worker.listen_fd = -1
+		worker.socket_fd = -1
 		io_uring.pool_init(mut worker)
 
 		// Try to initialize io_uring ring with SQPOLL, fall back if it fails
@@ -198,8 +199,8 @@ pub fn run_io_uring_backend(request_handler fn ([]u8, int) ![]u8, port int, mut 
 		}
 
 		// Create per-worker listener
-		worker.listen_fd = io_uring.create_listener(port)
-		if worker.listen_fd < 0 {
+		worker.socket_fd = socket.create_server_socket(port)
+		if worker.socket_fd < 0 {
 			eprintln('Failed to create listener for worker ${i}')
 			exit(1)
 		}

@@ -32,7 +32,6 @@ fn C.perror(s &char)
 // Server configuration
 pub const inaddr_any = u32(0)
 pub const default_port = 8080
-pub const default_backlog = 65535
 pub const default_ring_entries = 16384
 pub const default_buffer_size = 4096
 
@@ -167,7 +166,7 @@ pub mut:
 	ring          C.io_uring
 	cpu_id        int
 	tid           C.pthread_t
-	listen_fd     int
+	socket_fd     int
 	use_multishot bool
 	verbose       bool
 	conns         []Connection
@@ -266,16 +265,16 @@ pub fn tune_socket(fd int) {
 
 // Prepare accept operation (multishot when supported)
 // Returns true if SQE was successfully obtained, false otherwise
-pub fn prepare_accept(ring &C.io_uring, listen_fd int, multishot bool) bool {
+pub fn prepare_accept(ring &C.io_uring, socket_fd int, multishot bool) bool {
 	sqe := C.io_uring_get_sqe(ring)
 	if unsafe { sqe == nil } {
 		return false
 	}
 	if multishot {
-		C.io_uring_prep_multishot_accept(sqe, listen_fd, unsafe { nil }, unsafe { nil },
+		C.io_uring_prep_multishot_accept(sqe, socket_fd, unsafe { nil }, unsafe { nil },
 			C.SOCK_NONBLOCK)
 	} else {
-		C.io_uring_prep_accept(sqe, listen_fd, unsafe { nil }, unsafe { nil }, 0)
+		C.io_uring_prep_accept(sqe, socket_fd, unsafe { nil }, unsafe { nil }, 0)
 	}
 	C.io_uring_sqe_set_data64(sqe, encode_user_data(op_accept, unsafe { nil }))
 	return true
@@ -301,51 +300,6 @@ pub fn prepare_send(ring &C.io_uring, mut c Connection, data &u8, data_len usize
 	C.io_uring_prep_send(sqe, c.fd, unsafe { data }, data_len, 0)
 	C.io_uring_sqe_set_data64(sqe, encode_user_data(op_write, &c))
 	return true
-}
-
-// ==================== Server Setup ====================
-
-pub fn create_listener(port_num int) int {
-	lfd := C.socket(C.AF_INET, C.SOCK_STREAM, 0)
-	if lfd < 0 {
-		C.perror(c'socket')
-		return -1
-	}
-
-	one := 1
-	C.setsockopt(lfd, C.SOL_SOCKET, C.SO_REUSEADDR, &one, sizeof(int))
-	C.setsockopt(lfd, C.SOL_SOCKET, C.SO_REUSEPORT, &one, sizeof(int))
-	C.setsockopt(lfd, C.IPPROTO_TCP, C.TCP_DEFER_ACCEPT, &one, sizeof(int))
-
-	// Use raw sockaddr_in struct inline with C interop
-	mut addr := [16]u8{}
-	unsafe {
-		// sin_family (u16) at offset 0
-		*(&u16(&addr[0])) = u16(C.AF_INET)
-		// sin_port (u16) at offset 2
-		*(&u16(&addr[2])) = C.htons(u16(port_num))
-		// sin_addr.s_addr (u32) at offset 4
-		*(&u32(&addr[4])) = C.htonl(C.INADDR_ANY)
-	}
-	eprintln('[io_uring] binding fd=${lfd} to 0.0.0.0:${port_num}')
-	if C.bind(lfd, voidptr(&addr[0]), u32(16)) < 0 {
-		C.perror(c'bind')
-		C.close(lfd)
-		return -1
-	}
-
-	eprintln('[io_uring] listen fd=${lfd} backlog=${default_backlog}')
-	if C.listen(lfd, default_backlog) < 0 {
-		C.perror(c'listen')
-		C.close(lfd)
-		return -1
-	}
-
-	flags := C.fcntl(lfd, C.F_GETFL, 0)
-	C.fcntl(lfd, C.F_SETFL, flags | C.O_NONBLOCK)
-	eprintln('[io_uring] listener fd=${lfd} ready (nonblocking set)')
-
-	return lfd
 }
 
 // ==================== Type Definitions ====================
