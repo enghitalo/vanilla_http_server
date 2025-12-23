@@ -9,58 +9,6 @@ fn C.perror(s &u8)
 fn C.sleep(seconds u32) u32
 fn C.close(fd int) int
 
-pub fn run_io_uring_backend(request_handler fn ([]u8, int) ![]u8, port int, mut threads []thread) {
-	num_workers := max_thread_pool_size
-
-	for i in 0 .. num_workers {
-		mut worker := &io_uring.Worker{}
-		worker.cpu_id = i
-		worker.listen_fd = -1
-		io_uring.pool_init(mut worker)
-
-		// Try to initialize io_uring ring with SQPOLL, fall back if it fails
-		mut params := C.io_uring_params{}
-		params.flags |= 1 << 3 // IORING_SETUP_SQPOLL
-		params.sq_thread_cpu = i // Pin SQ thread to worker CPU
-		mut sqpoll_failed := false
-		if C.io_uring_queue_init_params(u32(io_uring.default_ring_entries), &worker.ring,
-			&params) < 0 {
-			eprintln('[io_uring] worker ${i}: SQPOLL failed, falling back to normal io_uring')
-			// Try again without SQPOLL
-			params = C.io_uring_params{}
-			if C.io_uring_queue_init_params(u32(io_uring.default_ring_entries), &worker.ring,
-				&params) < 0 {
-				eprintln('Failed to initialize io_uring for worker ${i}')
-				exit(1)
-			}
-			sqpoll_failed = true
-		}
-		// Use single-shot accept for SO_REUSEPORT
-		//    worker.use_multishot = false
-		if sqpoll_failed {
-			eprintln('[io_uring] worker ${i}: single-shot accept enabled (no SQPOLL)')
-		} else {
-			eprintln('[io_uring] worker ${i}: single-shot accept + SQPOLL enabled')
-		}
-
-		// Create per-worker listener
-		worker.listen_fd = io_uring.create_listener(port)
-		if worker.listen_fd < 0 {
-			eprintln('Failed to create listener for worker ${i}')
-			exit(1)
-		}
-		// Spawn worker thread
-		threads[i] = spawn io_uring_worker_loop(worker, request_handler)
-	}
-
-	println('listening on http://localhost:${port}/ (io_uring)')
-
-	// Keep main thread alive
-	for {
-		C.sleep(1)
-	}
-}
-
 // --- io_uring CQE Handlers ---
 fn handle_io_uring_accept(worker &io_uring.Worker, cqe &C.io_uring_cqe) {
 	res := cqe.res
@@ -212,5 +160,57 @@ fn io_uring_worker_loop(worker &io_uring.Worker, handler fn ([]u8, int) ![]u8) {
 			}
 			pending = 0
 		}
+	}
+}
+
+pub fn run_io_uring_backend(request_handler fn ([]u8, int) ![]u8, port int, mut threads []thread) {
+	num_workers := max_thread_pool_size
+
+	for i in 0 .. num_workers {
+		mut worker := &io_uring.Worker{}
+		worker.cpu_id = i
+		worker.listen_fd = -1
+		io_uring.pool_init(mut worker)
+
+		// Try to initialize io_uring ring with SQPOLL, fall back if it fails
+		mut params := C.io_uring_params{}
+		params.flags |= 1 << 3 // IORING_SETUP_SQPOLL
+		params.sq_thread_cpu = i // Pin SQ thread to worker CPU
+		mut sqpoll_failed := false
+		if C.io_uring_queue_init_params(u32(io_uring.default_ring_entries), &worker.ring,
+			&params) < 0 {
+			eprintln('[io_uring] worker ${i}: SQPOLL failed, falling back to normal io_uring')
+			// Try again without SQPOLL
+			params = C.io_uring_params{}
+			if C.io_uring_queue_init_params(u32(io_uring.default_ring_entries), &worker.ring,
+				&params) < 0 {
+				eprintln('Failed to initialize io_uring for worker ${i}')
+				exit(1)
+			}
+			sqpoll_failed = true
+		}
+		// Use single-shot accept for SO_REUSEPORT
+		//    worker.use_multishot = false
+		if sqpoll_failed {
+			eprintln('[io_uring] worker ${i}: single-shot accept enabled (no SQPOLL)')
+		} else {
+			eprintln('[io_uring] worker ${i}: single-shot accept + SQPOLL enabled')
+		}
+
+		// Create per-worker listener
+		worker.listen_fd = io_uring.create_listener(port)
+		if worker.listen_fd < 0 {
+			eprintln('Failed to create listener for worker ${i}')
+			exit(1)
+		}
+		// Spawn worker thread
+		threads[i] = spawn io_uring_worker_loop(worker, request_handler)
+	}
+
+	println('listening on http://localhost:${port}/ (io_uring)')
+
+	// Keep main thread alive
+	for {
+		C.sleep(1)
 	}
 }
