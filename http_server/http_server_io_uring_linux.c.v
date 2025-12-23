@@ -18,7 +18,6 @@ fn handle_io_uring_accept(worker &io_uring.Worker, cqe &C.io_uring_cqe) {
 		$if verbose ? {
 			eprintln('[DEBUG] Accept: new fd=${fd}')
 		}
-		io_uring.tune_socket(fd)
 		mut nc := io_uring.pool_acquire_from_ptr(worker, fd)
 		if unsafe { nc != nil } {
 			io_uring.prepare_recv(&worker.ring, mut *nc)

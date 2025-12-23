@@ -245,22 +245,6 @@ pub fn pool_release_from_ptr(worker &Worker, mut c Connection) {
 	pool_release(mut w, mut c)
 }
 
-// ==================== Socket Configuration ====================
-
-pub fn tune_socket(fd int) {
-	flags := C.fcntl(fd, C.F_GETFL, 0)
-	C.fcntl(fd, C.F_SETFL, flags | C.O_NONBLOCK)
-
-	one := 1
-	C.setsockopt(fd, C.IPPROTO_TCP, C.TCP_NODELAY, &one, sizeof(int))
-
-	sndbuf := 524288 // 512KB
-	C.setsockopt(fd, C.SOL_SOCKET, C.SO_SNDBUF, &sndbuf, sizeof(int))
-
-	rcvbuf := 262144 // 256KB
-	C.setsockopt(fd, C.SOL_SOCKET, C.SO_RCVBUF, &rcvbuf, sizeof(int))
-}
-
 // ==================== IO Uring Operations ====================
 
 // Prepare accept operation (multishot when supported)
