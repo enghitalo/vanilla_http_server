@@ -112,6 +112,7 @@ pub fn create_server_socket(port int) int {
 	set_blocking(server_fd, false)
 
 	opt := 1
+	// On Linux, also set SO_REUSEPORT for load balancing between threads
 	$if linux {
 		// On Linux/other Unix, use SO_REUSEPORT for socket sharding/load balancing
 		// SO_REUSEPORT allows multiple workers to bind() and accept() independently
@@ -121,6 +122,8 @@ pub fn create_server_socket(port int) int {
 			close_socket(server_fd)
 			exit(1)
 		}
+
+		eprintln('[socket] SO_REUSEPORT enabled for load balancing')
 	} $else {
 		if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) < 0 {
 			eprintln(@LOCATION)
@@ -131,7 +134,7 @@ pub fn create_server_socket(port int) int {
 	}
 
 	// Bind to INADDR_ANY (0.0.0.0)
-	println('[server] Binding to 0.0.0.0:${port}')
+	println('[socket] Binding to 0.0.0.0:${port}')
 	server_addr := C.sockaddr_in{
 		sin_family: u16(C.AF_INET)
 		sin_port:   C.htons(port)
