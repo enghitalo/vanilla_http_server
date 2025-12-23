@@ -145,14 +145,19 @@ pub fn (mut s Server) test(requests [][]u8) ![][]u8 {
 	return responses
 }
 
+struct Certificates {
+pub:
+	cert_pem    []u8
+	key_pem     []u8
+	ca_cert_pem []u8
+}
+
 pub struct ServerConfig {
 pub:
 	port            int       = 3000
 	io_multiplexing IOBackend = unsafe { IOBackend(0) }
 	request_handler fn ([]u8, int) ![]u8 @[required]
-	cert_pem        []u8
-	key_pem         []u8
-	ca_cert_pem     []u8
+	certificates    Certificates
 }
 
 pub fn new_server(config ServerConfig) !Server {
