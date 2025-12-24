@@ -15,14 +15,14 @@ pub struct HttpRequest {
 pub:
 	buffer []u8
 pub mut:
-	method  Slice
-	path    Slice // TODO: change to request_target (rfc9112)
-	version Slice
-	// header_fields Slice
-	// body Slice
+	method        Slice
+	path          Slice // TODO: change to request_target (rfc9112)
+	version       Slice
+	header_fields Slice
+	body          Slice
 }
 
-fn C.memchr(s &u8, c int, n usize) &u8
+// fn C.memchr(s &u8, c int, n usize) &u8
 
 // libc memchr is AVX2-accelerated via glibc IFUNC
 @[inline]
@@ -32,7 +32,7 @@ fn find_byte(buf &u8, len int, c u8) int {
 		if p == voidptr(nil) {
 			return -1
 		}
-		return int(p - buf)
+		return int(&u8(p) - buf)
 	}
 }
 
@@ -47,7 +47,7 @@ fn find_byte(buf &u8, len int, c u8) int {
 // HTTP-VERSION is the version of HTTP being used (e.g., HTTP/1.1)
 // CRLF is a carriage return followed by a line feed
 @[direct_array_access]
-pub fn parse_http1_request_line(mut req HttpRequest) ! {
+pub fn parse_http1_request_line(mut req HttpRequest) !int {
 	unsafe {
 		buf := &req.buffer[0]
 		len := req.buffer.len
@@ -111,6 +111,8 @@ pub fn parse_http1_request_line(mut req HttpRequest) ! {
 		if delim_pos + 1 >= len || buf[delim_pos + 1] != lf_char {
 			return error('Invalid CRLF')
 		}
+
+		return delim_pos + 2 // Return position after CRLF
 	}
 }
 
@@ -119,7 +121,37 @@ pub fn decode_http_request(buffer []u8) !HttpRequest {
 		buffer: buffer
 	}
 
-	parse_http1_request_line(mut req)!
+	// header_start is the byte index immediately after the request line's \r\n
+	header_start := parse_http1_request_line(mut req)!
+
+	// Find the end of the header block (\r\n\r\n)
+	mut body_start := -1
+	for i := header_start; i <= buffer.len - 4; i++ {
+		if buffer[i] == cr_char && buffer[i + 1] == lf_char && buffer[i + 2] == cr_char
+			&& buffer[i + 3] == lf_char {
+			body_start = i + 4
+
+			// The header fields slice covers everything from header_start
+			// up to (but not including) the final double CRLF
+			req.header_fields = Slice{
+				start: header_start
+				len:   i - header_start
+			}
+			break
+		}
+	}
+
+	if body_start != -1 {
+		req.body = Slice{
+			start: body_start
+			len:   buffer.len - body_start
+		}
+	} else {
+		// If no body delimiter found, assume headers go to end or body is missing
+		req.header_fields = Slice{header_start, buffer.len - header_start - 2}
+		req.body = Slice{0, 0}
+	}
+
 	return req
 }
 
