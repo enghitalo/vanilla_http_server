@@ -42,8 +42,7 @@ pub fn build_basic_response(status int, body_buffer []u8, content_type_buffer []
 	// headers
 	// Date
 	sb.write('Date: '.bytes()) or { println(err) }
-	// time.utc().push_to_http_header(sb) // After https://github.com/vlang/v/pull/26155
-	sb.write_string(time.utc().http_header_string())
+	time.utc().push_to_http_header(mut sb)
 	sb.write('\r\n'.bytes()) or { println(err) }
 	// content type
 	sb.write(content_type_header_field) or { println(err) }
