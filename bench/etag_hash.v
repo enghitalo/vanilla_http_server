@@ -60,6 +60,53 @@ fn u64_to_hex_chunked(mut out []u8, v u64) {
 	}
 }
 
+const m_80 = u64(0x8080808080808080)
+const m_20 = u64(0x2020202020202020)
+
+// validate_u64_to_hex checks if the hex string (16 chars) represents a valid hex sequence.
+// v is the original u64 (useful if you wanted to verify the value match,
+// but here we focus on buffer validation).
+fn validate_u64_to_hex(v u64, hex_ptr &u8, hex_len int) bool {
+	// A u64 hex string MUST be exactly 16 characters
+	if hex_len != 16 {
+		return false
+	}
+	unsafe {
+		mut i := 0
+		for i < 8 {
+			b := u8(v >> ((7 - i) * 8))
+			c1 := hex_ptr[i * 2 + 0]
+			c2 := hex_ptr[i * 2 + 1]
+
+			// Convert ASCII hex chars back to byte
+			mut hb := u8(0)
+			if c1 >= `0` && c1 <= `9` {
+				hb = (c1 - `0`) << 4
+			} else if c1 >= `a` && c1 <= `f` {
+				hb = (c1 - `a` + 10) << 4
+			} else {
+				return false
+			}
+
+			mut lb := u8(0)
+			if c2 >= `0` && c2 <= `9` {
+				lb = c2 - `0`
+			} else if c2 >= `a` && c2 <= `f` {
+				lb = c2 - `a` + 10
+			} else {
+				return false
+			}
+
+			reconstructed_byte := hb | lb
+			if reconstructed_byte != b {
+				return false
+			}
+			i++
+		}
+	}
+	return true
+}
+
 fn generate_wyhash_etag(content_ptr &u8, content_len int) []u8 {
 	hash := wyhash.wyhash_c(content_ptr, u64(content_len), 0)
 	mut etag := []u8{len: 16}
@@ -90,6 +137,12 @@ fn main() {
 	println('MD5 stdlib:	' + md5.sum(buffer).hex().bytes().bytestr())
 	println('Wyhash Fast:	' + generate_wyhash_etag(buffer.data, buffer.len).bytestr())
 	println('Wyhash stdlib:	' + wyhash.wyhash_c(buffer.data, u64(buffer.len), 0).hex())
+	// println(wyhash.wyhash_c(buffer.data, u64(buffer.len), 0))
+	// validation test
+	etag_wyhash := '08e445df107bb587'.bytes() // or 08e445df107bb587 // or  generate_wyhash_etag(buffer.data, buffer.len)
+	etag_wyhash_u64 := wyhash.wyhash_c(buffer.data, u64(buffer.len), 0) // returned u64(640713871350019463)
+	is_valid_wyhash := validate_u64_to_hex(etag_wyhash_u64, etag_wyhash.data, etag_wyhash.len)
+	println('Wyhash ETag valid: ' + is_valid_wyhash.str())
 
 	mut b_md5 := benchmark.start()
 
@@ -113,4 +166,10 @@ fn main() {
 		_ = wyhash.wyhash_c(buffer.data, u64(buffer.len), 0).hex().bytes()
 	}
 	b_wyhash.measure('wyhash.wyhash_c().hex()')
+
+	mut b_validate := benchmark.start()
+	for _ in 0 .. intentions {
+		_ = validate_u64_to_hex(etag_wyhash_u64, etag_wyhash.data, etag_wyhash.len)
+	}
+	b_validate.measure('validate_u64_to_hex')
 }
