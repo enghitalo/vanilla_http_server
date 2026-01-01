@@ -97,15 +97,14 @@ fn handle_request(req_buffer []u8, client_conn_fd int, user_controller UserContr
 				}
 			}
 			// Dynamic route
-			mut colon_pos := find_byte(attr.str, attr.len, `:`) or {
-				continue
-			}
+			mut colon_pos := find_byte(attr.str, attr.len, `:`) or { continue }
 			if unsafe {
 				C.memcmp(attr.str, &parsed_http1_1_request.buffer[0], colon_pos)
 			} != 0 {
 				continue
 			}
-			mut remaining_colons := count_char(attr.str + colon_pos, attr.len - colon_pos, `:`)
+			mut remaining_colons := count_char(attr.str + colon_pos, attr.len - colon_pos,
+				`:`)
 			// TODO
 			continue
 		}
