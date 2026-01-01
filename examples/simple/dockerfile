@@ -1,0 +1,45 @@
+FROM debian:stable-slim as build
+
+RUN apt -qq update && \
+    apt -qy install --no-install-recommends build-essential git clang tcc && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH=/opt/vlang:$PATH
+ENV GIT_SSL_NO_VERIFY=1
+
+WORKDIR /opt/vlang
+
+RUN git clone --depth 1 https://github.com/vlang/v /opt/vlang && make
+
+RUN ln -s /opt/vlang/v /usr/bin/v
+
+RUN apt -y update && apt -y install liburing-dev linux-libc-dev
+
+RUN v install https://github.com/enghitalo/vanilla
+
+WORKDIR /app
+
+COPY . .
+
+RUN v -prod . -o server
+
+FROM debian:stable-slim
+
+WORKDIR /app
+
+# Copy the built binary
+COPY --from=build /app/server /app/server
+
+# Install runtime dependencies including liburing
+RUN apt -y update && \
+    apt -y install curl liburing2 && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
+EXPOSE 3000
+
+CMD ["./server"]
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
+    CMD curl --fail http://localhost:3000 || exit 1
