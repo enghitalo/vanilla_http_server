@@ -1,5 +1,6 @@
 module socket
 
+import net
 import net.conv
 
 pub const max_connection_size = 1024
@@ -61,7 +62,8 @@ pub fn connect_to_server(port int) !int {
 		return connect_to_server_on_windows(port)
 	}
 
-	client_fd := C.socket(C.AF_INET, C.SOCK_STREAM, 0)
+	// client_fd := C.socket(C.AF_INET, C.SOCK_STREAM, 0)
+	client_fd := C.socket(net.AddrFamily.ip, net.SocketType.tcp, 0)
 	if client_fd < 0 {
 		println('[client] Failed to create client socket')
 		return error('Failed to create client socket')
@@ -111,62 +113,44 @@ pub fn close_socket(fd int) {
 }
 
 pub fn create_server_socket(port int) int {
-	$if windows {
-		return create_server_socket_on_windows(port)
-	}
-	server_fd := C.socket(C.AF_INET, C.SOCK_STREAM, 0)
+	// Create a socket with non-blocking mode
+	server_fd := C.socket(net.AddrFamily.ip, net.SocketType.tcp, 0)
 	if server_fd < 0 {
 		eprintln(@LOCATION)
 		C.perror(c'Socket creation failed')
-		exit(1)
+		return -1
 	}
 
 	set_blocking(server_fd, false)
 
+	// Enable SO_REUSEADDR and SO_REUSEPORT
 	opt := 1
-	// On Linux, also set SO_REUSEPORT for load balancing between threads
-	$if linux {
-		// On Linux/other Unix, use SO_REUSEPORT for socket sharding/load balancing
-		// SO_REUSEPORT allows multiple workers to bind() and accept() independently
-		if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEPORT, &opt, sizeof(opt)) < 0 {
-			eprintln(@LOCATION)
-			C.perror(c'setsockopt SO_REUSEPORT failed')
-			close_socket(server_fd)
-			exit(1)
-		}
-
-		eprintln('[socket] SO_REUSEPORT enabled for load balancing')
-	} $else {
-		if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) < 0 {
-			eprintln(@LOCATION)
-			C.perror(c'setsockopt SO_REUSEADDR failed')
-			close_socket(server_fd)
-			exit(1)
-		}
+	if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEADDR, &opt, sizeof(opt)) < 0 {
+		eprintln(@LOCATION)
+		C.perror(c'setsockopt SO_REUSEADDR failed')
+		close_socket(server_fd)
+		return -1
+	}
+	if C.setsockopt(server_fd, C.SOL_SOCKET, C.SO_REUSEPORT, &opt, sizeof(opt)) < 0 {
+		eprintln(@LOCATION)
+		C.perror(c'setsockopt SO_REUSEPORT failed')
+		close_socket(server_fd)
+		return -1
 	}
 
-	// Bind to INADDR_ANY (0.0.0.0)
-	println('[socket] Binding to 0.0.0.0:${port}')
-	server_addr := C.sockaddr_in{
-		sin_family: u16(C.AF_INET)
-		sin_port:   conv.hton16(u16(port))
-		sin_addr:   C.in_addr{u32(C.INADDR_ANY)} // 0.0.0.0
-	}
-
-	// Cast to voidptr to fix the type mismatch
-	if C.bind(server_fd, voidptr(&server_addr), sizeof(server_addr)) < 0 {
+	addr := net.new_ip(u16(port), [u8(0), 0, 0, 0]!)
+	alen := addr.len()
+	if C.bind(server_fd, voidptr(&addr), alen) < 0 {
 		eprintln(@LOCATION)
 		C.perror(c'Bind failed')
 		close_socket(server_fd)
-		exit(1)
+		return -1
 	}
-
 	if C.listen(server_fd, max_connection_size) < 0 {
 		eprintln(@LOCATION)
 		C.perror(c'Listen failed')
 		close_socket(server_fd)
-		exit(1)
+		return -1
 	}
-
 	return server_fd
 }
