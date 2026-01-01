@@ -9,6 +9,8 @@ pub const max_connection_size = 1024
 
 $if !windows {
 	#include <netinet/in.h>
+	// superset of previous
+	#include <netinet/ip.h>
 }
 
 fn C.socket(socket_family int, socket_type int, protocol int) int
@@ -32,15 +34,24 @@ fn C.htons(__hostshort u16) u16
 fn C.fcntl(fd int, cmd int, arg int) int
 fn C.connect(sockfd int, addr &C.sockaddr_in, addrlen u32) int
 
+// Internet address
 struct C.in_addr {
+	// address in network byte order
 	s_addr u32
 }
 
+// An IP socket address is defined as a combination of an IP
+// interface address and a 16-bit port number.  The basic IP protocol
+// does not supply port numbers, they are implemented by higher level
+// protocols like udp(7) and tcp(7).  On raw sockets sin_port is set
+// to the IP protocol.
 struct C.sockaddr_in {
+	// address family: AF_INET
 	sin_family u16
-	sin_port   u16
-	sin_addr   C.in_addr
-	sin_zero   [8]u8
+	// port in network byte order
+	sin_port u16
+	// internet address
+	sin_addr C.in_addr
 }
 
 // Helper for client connections (for testing)
@@ -58,8 +69,7 @@ pub fn connect_to_server(port int) !int {
 	mut addr := C.sockaddr_in{
 		sin_family: u16(C.AF_INET)
 		sin_port:   C.htons(u16(port))
-		sin_addr:   C.in_addr{u32(0)} // 0.0.0.0
-		sin_zero:   [8]u8{}
+		sin_addr:   C.in_addr{u32(C.INADDR_ANY)} // 0.0.0.0
 	}
 	println('[client] Connecting to server on port ${port} (0.0.0.0)...')
 	// Cast to voidptr for OS compatibility
@@ -140,8 +150,7 @@ pub fn create_server_socket(port int) int {
 	server_addr := C.sockaddr_in{
 		sin_family: u16(C.AF_INET)
 		sin_port:   conv.hton16(u16(port))
-		sin_addr:   C.in_addr{u32(C.INADDR_ANY)}
-		sin_zero:   [8]u8{}
+		sin_addr:   C.in_addr{u32(C.INADDR_ANY)} // 0.0.0.0
 	}
 
 	// Cast to voidptr to fix the type mismatch
